@@ -84,13 +84,32 @@ struct Graph
             node1->edges.emplace_back(node2, distance); // добавление второго узла в список рёбер первого узла
             node2->edges.emplace_back(node1, distance); // добавление первого узла в список рёбер второго узла (двустороннее ребро)
         }
+        else
+        {
+            std::cerr << "Ошибка: ";
+            if (it1 == nodes.end())
+            {
+                std::cerr << "Узел 1 (" << lon1 << ", " << lat1 << ") не найден. ";
+            }
+            if (it2 == nodes.end())
+            {
+                std::cerr << "Узел 2 (" << lon2 << ", " << lat2 << ") не найден.";
+            }
+            std::cerr << std::endl;
+        }
     }
 
     // метод для загрузки графа из файла
     void load_graph_from_file(const std::string &filename)
     {
         std::ifstream file(filename); // открытие файла для чтения
-        std::string line;             // переменная для хранения текущей строки
+        if (!file.is_open())          // проверка, открылся ли файл
+        {
+            std::cerr << "Невозможно открыть файл: " << filename << std::endl;
+            return;
+        }
+
+        std::string line; // переменная для хранения текущей строки
 
         while (std::getline(file, line))
         {                                         // чтение файла построчно
@@ -99,15 +118,23 @@ struct Graph
 
             getline(ss, node_part, ':'); // получение части строки до двоеточия (узел)
             double lon1, lat1;
-            sscanf(node_part.c_str(), "%lf,%lf", &lon1, &lat1); // парсинг координат узла из строки
-            add_node(lon1, lat1);                               // добавление узла в граф
+            if (sscanf(node_part.c_str(), "%lf,%lf", &lon1, &lat1) != 2)
+            {
+                std::cerr << "Не удалось прочитть координаты узла: " << node_part << std::endl;
+                continue;
+            }
+            add_node(lon1, lat1); // добавление узла в граф
 
             while (getline(ss, neighbor_part, ';'))
             { // чтение соседей, разделенных точкой с запятой
                 double lon2, lat2, distance;
-                sscanf(neighbor_part.c_str(), "%lf,%lf,%lf", &lon2, &lat2, &distance); // парсинг координат соседа и расстояния из строки
-                add_node(lon2, lat2);                                                  // добавление соседа в граф
-                add_edge(lon1, lat1, lon2, lat2, distance);                            // добавление ребра между узлом и соседом
+                if (sscanf(neighbor_part.c_str(), "%lf,%lf,%lf", &lon2, &lat2, &distance) != 3)
+                {
+                    std::cerr << "Не удалось прочитать координаты соседа и расстояние: " << neighbor_part << std::endl;
+                    continue;
+                }
+                add_node(lon2, lat2);                       // добавление соседа в граф
+                add_edge(lon1, lat1, lon2, lat2, distance); // добавление ребра между узлом и соседом
             }
         }
     }
@@ -229,6 +256,11 @@ struct Graph
 
             for (auto [neighbor, edge_dist] : current->edges)
             {
+                if (edge_dist < 0)
+                {
+                    std::cerr << "Ошибка: отрицательное ребро" << std::endl;
+                    continue; // пропускаем отрицательное ребро
+                }
                 double new_dist = current_dist + edge_dist; // вычисляем новое расстояние до соседа
 
                 if (new_dist < distances[neighbor])
@@ -287,6 +319,12 @@ struct Graph
 
             for (auto [neighbor, weight] : current->edges) // проходим по всем соседям текущего узла
             {
+                if (weight < 0)
+                {
+                    std::cerr << "Ошибка: отрицательное ребро" << std::endl;
+                    continue; // пропускаем отрицательное ребро
+                }
+                
                 double tentative_g_score = g_score[current] + weight; // вычисляем предполагаемую стоимость пути до соседа через текущий узел
 
                 if (tentative_g_score < g_score[neighbor])
